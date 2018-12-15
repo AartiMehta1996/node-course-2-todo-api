@@ -1,15 +1,15 @@
+const _ = require('lodash');
 var express = require('express');
 var bodyParser =require('body-parser');
 var {ObjectID} = require('mongodb');
 var {mongoose} = require('./db/mongoose');
 var {Todo} = require('./models/todo');
 var {User} = require('./models/user');
-
 var app =  express();
 const port = process.env.PORT || 3000;
 //const port=3000;
 app.use(bodyParser.json());
-
+//Insert into mongodb
 app.post('/todos',(req,res)=>{
   var todo = new Todo({
     text:req.body.text
@@ -23,6 +23,7 @@ app.post('/todos',(req,res)=>{
   });
   //console.log(req.body);
 });
+
 //to fetch Todos
 app.get('/todos',(req,res) =>{
   Todo.find().then((todos)=>{
@@ -32,7 +33,7 @@ app.get('/todos',(req,res) =>{
   });
 });
 
-
+//Fetch by Id
 app.get('/todos/:id',(req,res)=>{
   var id = req.params.id;
   if(!ObjectID.isValid(id))
@@ -49,20 +50,56 @@ app.get('/todos/:id',(req,res)=>{
     res.status(400).send();
   })
 });
+//Delete todos
+app.delete('/todos/:id',(req,res)=>{
+  var id =req.params.id;
+  if(!ObjectID.isValid(id))
+  {
+    return res.status(404).send();
+  }
+  Todo.findByIdAndRemove(id).then((todo)=>
+  {
+    if(!todo){
+      return res.status(404).send();
+    }
+    res.send({todo});
+  }).catch((e)=>{res.status(400).send();
+})
+});
+//Update todos
+
+app.patch('/todos/:id',(req,res)=>{
+  var id = req.params.id;
+  var body = _.pick(req.body,['text','completed']);
+
+  if(!ObjectID.isValid(id)){
+    return res.status(404).send();
+  }
+  if(_.isBoolean(body.completed) && body.completed)
+  {
+    body.completedAt = new Date().getTime();
+  }
+  else {
+    body.completed = false;
+    body.completedAt = null;
+  }
+  Todo.findByIdAndUpdate(id,{$set : body},{new : true}).then((todo) =>
+  {
+    if(!todo)
+      {
+          return res.status(404).send();
+      }
+      res.send({todo});
+  }).catch((e)=>{
+    res.status(404).send()
+  })
+});
 
 app.listen(port,()=>{
   console.log(`Started on port ${port}`);
 });
 
 module.exports = {app};
-
-
-
-
-
-
-
-
 
 
 // var u = new User({
@@ -74,7 +111,7 @@ module.exports = {app};
 // },(e)=>{
 //   console.log(e);
 // });
-// var newTodo = new todo({
+// var newTodo = new Todo({
 //   text: 'Cook dinner'
 // });
 //
@@ -86,7 +123,7 @@ module.exports = {app};
 //   console.log("Error ::" ,e);
 // });
 //
-// var newTodo2 = new todo({
+// var newTodo2 = new Todo({
 //   text:'  Edit this video  '
 // });
 //
